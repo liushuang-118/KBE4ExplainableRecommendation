@@ -27,6 +27,11 @@ import numpy as np
 from six.moves import xrange# pylint: disable=redefined-builtin
 import tensorflow as tf
 
+# 禁用 Eager Execution，启用 TF1 风格 graph execution
+tf.compat.v1.disable_eager_execution()
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
+
+
 class MultiViewEmbedding_model(object):
 	def __init__(self, data_set, window_size,
 				 embed_size, max_gradient_norm, batch_size, learning_rate, L2_lambda, image_weight,
@@ -66,7 +71,7 @@ class MultiViewEmbedding_model(object):
 		self.similarity_func = similarity_func
 		self.global_step = tf.Variable(0, trainable=False)
 
-		self.learning_rate = tf.placeholder(tf.float32, name="learning_rate")
+		self.learning_rate = tf.compat.v1.placeholder(tf.float32, name="learning_rate")
 		init_width = 0.5 / self.embed_size
 		#self.img_feature_num = data_set.img_feature_num
 		#self.rate_factor_num = data_set.rate_factor_num
@@ -78,7 +83,7 @@ class MultiViewEmbedding_model(object):
 				'name' : name,
 				'vocab' : vocab,
 				'size' : len(vocab),
-				'embedding' :tf.Variable( tf.random_uniform(									
+				'embedding' :tf.Variable( tf.compat.v1.random_uniform(									
 							[len(vocab), self.embed_size], -init_width, init_width),				
 							name="%s_emb"%name)	
 			}
@@ -91,15 +96,15 @@ class MultiViewEmbedding_model(object):
 			'categories' : entity('categories', data_set.category_ids),
 		}
 
-		self.user_idxs = tf.placeholder(tf.int64, shape=[None], name="user_idxs")
+		self.user_idxs = tf.compat.v1.placeholder(tf.int64, shape=[None], name="user_idxs")
 		
 		def relation(name, distribute):
 			#print('%s size %s' % (name, str(len(distribute))))
 			return {
 				'distribute' : distribute,
-				'idxs' : tf.placeholder(tf.int64, shape=[None], name="%s_idxs"%name),
-				'weight' : 	tf.placeholder(tf.float32, shape=[None], name="%s_weight"%name),
-				'embedding' : tf.Variable( tf.random_uniform(									
+				'idxs' : tf.compat.v1.placeholder(tf.int64, shape=[None], name="%s_idxs"%name),
+				'weight' : 	tf.compat.v1.placeholder(tf.float32, shape=[None], name="%s_weight"%name),
+				'embedding' : tf.Variable( tf.compat.v1.random_uniform(									
 								[self.embed_size], -init_width, init_width),				
 								name="%s_emb"%name),
 				'bias' : tf.Variable(tf.zeros([len(distribute)]), name="%s_b"%name)	
@@ -145,9 +150,9 @@ class MultiViewEmbedding_model(object):
 		self.loss = self.build_embedding_graph_and_loss()
 
 		# Gradients and SGD update operation for training the model.
-		params = tf.trainable_variables()
+		params = tf.compat.v1.trainable_variables()
 		if not forward_only:
-			opt = tf.train.GradientDescentOptimizer(self.learning_rate)
+			opt = tf.compat.v1.train.GradientDescentOptimizer(self.learning_rate)
 			self.gradients = tf.gradients(self.loss, params)
 			
 			self.clipped_gradients, self.norm = tf.clip_by_global_norm(self.gradients,
@@ -218,7 +223,7 @@ class MultiViewEmbedding_model(object):
 				self.p_entity_list.append(('categories', 'categories', self.pic_scores))
 			
 	
-		self.saver = tf.train.Saver(tf.global_variables())
+		self.saver = tf.compat.v1.train.Saver(tf.compat.v1.global_variables())
 
 	def get_relation_scores(self, add_weight, head_vec, relation_name, tail_name, tail_idxs = None, scope = None):
 		with variable_scope.variable_scope(scope or "embedding_graph"):										

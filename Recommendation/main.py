@@ -32,6 +32,9 @@ from __future__ import division
 from __future__ import print_function
 from tensorflow.python.client import timeline
 
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
+
 import math
 import os
 import random
@@ -41,54 +44,81 @@ import copy
 
 import numpy as np
 from six.moves import xrange	# pylint: disable=redefined-builtin
-import tensorflow as tf
+# import tensorflow as tf
 import data_util
 
 from MultiViewEmbedding import MultiViewEmbedding_model
 
-
-tf.app.flags.DEFINE_float("learning_rate", 0.05, "Learning rate.")
-tf.app.flags.DEFINE_float("learning_rate_decay_factor", 0.90,
-							"Learning rate decays by this much.")
-tf.app.flags.DEFINE_float("max_gradient_norm", 5.0,
-							"Clip gradients to this norm.")
-tf.app.flags.DEFINE_float("subsampling_rate", 1e-4,
-							"The rate to subsampling.")
-tf.app.flags.DEFINE_float("L2_lambda", 0.0,
-							"Lambda for L2 regularization.")
-tf.app.flags.DEFINE_float("image_weight", 1.0,
-							"weight for image loss.")
-tf.app.flags.DEFINE_integer("batch_size", 64,
-							"Batch size to use during training.")
-#rank list size should be read from data
-tf.app.flags.DEFINE_string("data_dir", "/tmp", "Data directory")
-tf.app.flags.DEFINE_string("input_train_dir", "", "The directory of training and testing data")
-tf.app.flags.DEFINE_string("train_dir", "/tmp", "Model directory & output directory")
-tf.app.flags.DEFINE_string("similarity_func", "product", "Select similarity function")
-tf.app.flags.DEFINE_string("net_struct", "pv", "Select network structure")
-tf.app.flags.DEFINE_integer("embed_size", 100, "Size of each embedding.")
-tf.app.flags.DEFINE_integer("window_size", 5, "Size of context window.")
-tf.app.flags.DEFINE_integer("max_train_data_size", 0,
-							"Limit on the size of training data (0: no limit).")
-tf.app.flags.DEFINE_integer("max_train_epoch", 5,
-							"Limit on the epochs of training (0: no limit).")
-tf.app.flags.DEFINE_integer("steps_per_checkpoint", 200,
-							"How many training steps to do per checkpoint.")
-tf.app.flags.DEFINE_integer("seconds_per_checkpoint", 3600,
-							"How many seconds to store embeddings.")
-tf.app.flags.DEFINE_integer("negative_sample", 5,
-							"How many negative samples to generate for listMLE.")
-tf.app.flags.DEFINE_boolean("decode", False,
-							"Set to True for decoding data.")
-tf.app.flags.DEFINE_string("test_mode", "product_scores", "The output methods")
-tf.app.flags.DEFINE_integer("rank_cutoff", 100,
-							"Rank cutoff for output ranklists.")
-tf.app.flags.DEFINE_boolean("self_test", False,
-							"Run a self-test if this is set to True.")
+flags = tf.app.flags
+FLAGS = flags.FLAGS
 
 
+# tf.app.flags.DEFINE_float("learning_rate", 0.05, "Learning rate.")
+# tf.app.flags.DEFINE_float("learning_rate_decay_factor", 0.90,
+# 							"Learning rate decays by this much.")
+# tf.app.flags.DEFINE_float("max_gradient_norm", 5.0,
+# 							"Clip gradients to this norm.")
+# tf.app.flags.DEFINE_float("subsampling_rate", 1e-4,
+# 							"The rate to subsampling.")
+# tf.app.flags.DEFINE_float("L2_lambda", 0.0,
+# 							"Lambda for L2 regularization.")
+# tf.app.flags.DEFINE_float("image_weight", 1.0,
+# 							"weight for image loss.")
+# tf.app.flags.DEFINE_integer("batch_size", 64,
+# 							"Batch size to use during training.")
+# #rank list size should be read from data
+# tf.app.flags.DEFINE_string("data_dir", "/tmp", "Data directory")
+# tf.app.flags.DEFINE_string("input_train_dir", "", "The directory of training and testing data")
+# tf.app.flags.DEFINE_string("train_dir", "/tmp", "Model directory & output directory")
+# tf.app.flags.DEFINE_string("similarity_func", "product", "Select similarity function")
+# tf.app.flags.DEFINE_string("net_struct", "pv", "Select network structure")
+# tf.app.flags.DEFINE_integer("embed_size", 100, "Size of each embedding.")
+# tf.app.flags.DEFINE_integer("window_size", 5, "Size of context window.")
+# tf.app.flags.DEFINE_integer("max_train_data_size", 0,
+# 							"Limit on the size of training data (0: no limit).")
+# tf.app.flags.DEFINE_integer("max_train_epoch", 5,
+# 							"Limit on the epochs of training (0: no limit).")
+# tf.app.flags.DEFINE_integer("steps_per_checkpoint", 200,
+# 							"How many training steps to do per checkpoint.")
+# tf.app.flags.DEFINE_integer("seconds_per_checkpoint", 3600,
+# 							"How many seconds to store embeddings.")
+# tf.app.flags.DEFINE_integer("negative_sample", 5,
+# 							"How many negative samples to generate for listMLE.")
+# tf.app.flags.DEFINE_boolean("decode", False,
+# 							"Set to True for decoding data.")
+# tf.app.flags.DEFINE_string("test_mode", "product_scores", "The output methods")
+# tf.app.flags.DEFINE_integer("rank_cutoff", 100,
+# 							"Rank cutoff for output ranklists.")
+# tf.app.flags.DEFINE_boolean("self_test", False,
+# 							"Run a self-test if this is set to True.")
 
-FLAGS = tf.app.flags.FLAGS
+flags.DEFINE_float("learning_rate", 0.05, "Learning rate.")
+flags.DEFINE_float("learning_rate_decay_factor", 0.90, "Learning rate decays by this much.")
+flags.DEFINE_float("max_gradient_norm", 5.0, "Clip gradients to this norm.")
+flags.DEFINE_float("subsampling_rate", 1e-4, "The rate to subsampling.")
+flags.DEFINE_float("L2_lambda", 0.0, "Lambda for L2 regularization.")
+flags.DEFINE_float("image_weight", 1.0, "weight for image loss.")
+flags.DEFINE_integer("batch_size", 64, "Batch size to use during training.")
+flags.DEFINE_string("data_dir", "/tmp", "Data directory")
+flags.DEFINE_string("input_train_dir", "", "The directory of training and testing data")
+flags.DEFINE_string("train_dir", "/tmp", "Model directory & output directory")
+flags.DEFINE_string("similarity_func", "product", "Select similarity function")
+flags.DEFINE_string("net_struct", "pv", "Select network structure")
+flags.DEFINE_integer("embed_size", 100, "Size of each embedding.")
+flags.DEFINE_integer("window_size", 5, "Size of context window.")
+flags.DEFINE_integer("max_train_data_size", 0, "Limit on the size of training data (0: no limit).")
+flags.DEFINE_integer("max_train_epoch", 5, "Limit on the epochs of training (0: no limit).")
+flags.DEFINE_integer("steps_per_checkpoint", 200, "How many training steps to do per checkpoint.")
+flags.DEFINE_integer("seconds_per_checkpoint", 3600, "How many seconds to store embeddings.")
+flags.DEFINE_integer("negative_sample", 5, "How many negative samples to generate for listMLE.")
+flags.DEFINE_boolean("decode", False, "Set True for decoding data.")
+flags.DEFINE_string("test_mode", "product_scores", "The output methods")
+flags.DEFINE_integer("rank_cutoff", 100, "Rank cutoff for output ranklists.")
+flags.DEFINE_boolean("self_test", False, "Run a self-test if this is set to True.")
+
+
+
+# FLAGS = tf.app.flags.FLAGS
 
 
 def create_model(session, forward_only, data_set, review_size):
